@@ -244,6 +244,8 @@ impl AsyncInterrupt {
             let mut interrupt = Interrupt::new(fd, pin, trigger)?;
             poll.add(interrupt.fd(), interrupt.fd() as u64, EPOLLIN | EPOLLPRI)?;
 
+            let mut previous_level = Level::Low; // for now
+
             let mut events = [epoll_event { events: 0, u64: 0 }; 2];
             loop {
                 let num_events = poll.wait(&mut events, None)?;
@@ -254,7 +256,10 @@ impl AsyncInterrupt {
                             return Ok(()); // The main thread asked us to stop
                         } else if fd == interrupt.fd() {
                             let level = interrupt.event()?.level();
-                            callback(level);
+                            if level != previous_level {
+                                callback(level);
+                                previous_level = level;
+                            }
                         }
                     }
                 }
